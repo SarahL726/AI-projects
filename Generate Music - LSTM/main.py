@@ -6,14 +6,13 @@ from keras.utils import to_categorical
 
 notes = []
 
-for file in glob.glob("Generate Music - LSTM/*.mid"):
+for file in glob.glob("Generate Music - LSTM/midi_files/pop songs/*.mid"):
     # load each file into a Music21 stream object
     # midi = a list of all the notes and chords in the file
     midi = converter.parse(file)
     notes_to_parse = None
 
     # parts = instrument.partitionByInstrument(midi)
-    # print(parts)
 
     # if parts: # file has instrument parts
     #     notes_to_parse = parts.parts[0].recurse()
@@ -22,7 +21,7 @@ for file in glob.glob("Generate Music - LSTM/*.mid"):
     notes_to_parse = midi.flat.notes
     # we want notes and chords as the input and output
     for element in notes_to_parse:
-        print(element)
+        # print(element)
         if isinstance(element, note.Note):
             notes.append(str(element.pitch))
         elif isinstance(element, chord.Chord):
@@ -34,7 +33,7 @@ for file in glob.glob("Generate Music - LSTM/*.mid"):
 # put the length of each seq to be 100 notes/chords
 # to predict the next note, it has the previous 100 notes to help make the prediction
 #### HIGHLY RECOMMEND use different lengths for prediction
-sequence_length = 20
+sequence_length = 100
 
 # get all pitch names
 pitchnames = sorted(set(item for item in notes))
@@ -93,13 +92,13 @@ model.add(Activation('softmax'))
 model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
 # filepath = "weights-improvement-{epoch:02d}-{loss:.4f}-bigger.hdf5"
-filepath = "weights.hdf5"
+filepath = "weights_pop.hdf5"
 # stop running the NN once we are satistied w/ the loss value
 checkpoint = ModelCheckpoint(
     filepath, monitor='loss', verbose=0, save_best_only=True, mode='min'
 )
 callbacks_list = [checkpoint]
-model.fit(network_input, network_output, epochs=200, batch_size=64, callbacks=callbacks_list)
+model.fit(network_input, network_output, epochs=5, batch_size=64, callbacks=callbacks_list)
 
 
 
@@ -116,7 +115,7 @@ model.add(Dense(n_vocab))
 model.add(Activation('softmax'))
 model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 # load the weights to each node
-model.load_weights('weights.hdf5')
+model.load_weights('weights_pop.hdf5')
 
 
 
@@ -176,4 +175,4 @@ for pattern in prediction_output:
 
 # 6. create music!
 midi_stream = stream.Stream(output_notes)
-midi_stream.write('midi', fp='test_output.mid')
+midi_stream.write('midi', fp='pop_test_output.mid')
