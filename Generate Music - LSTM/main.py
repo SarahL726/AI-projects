@@ -2,25 +2,27 @@
 import glob
 from music21 import converter, instrument, note, chord, stream
 import numpy as np
-import np_utils
+from keras.utils import to_categorical
 
 notes = []
 
-for file in glob.glob("midi_songs/*.mid"):
+for file in glob.glob("Generate Music - LSTM/*.mid"):
     # load each file into a Music21 stream object
     # midi = a list of all the notes and chords in the file
     midi = converter.parse(file)
     notes_to_parse = None
 
-    parts = instrument.partitionByInstrument(midi)
+    # parts = instrument.partitionByInstrument(midi)
+    # print(parts)
 
-    if parts: # file has instrument parts
-        notes_to_parse = parts.parts[0].recurse()
-    else:
-        notes_to_parse = midi.flat.notes
-
+    # if parts: # file has instrument parts
+    #     notes_to_parse = parts.parts[0].recurse()
+    # else:
+    #     notes_to_parse = midi.flat.notes
+    notes_to_parse = midi.flat.notes
     # we want notes and chords as the input and output
     for element in notes_to_parse:
+        print(element)
         if isinstance(element, note.Note):
             notes.append(str(element.pitch))
         elif isinstance(element, chord.Chord):
@@ -32,7 +34,7 @@ for file in glob.glob("midi_songs/*.mid"):
 # put the length of each seq to be 100 notes/chords
 # to predict the next note, it has the previous 100 notes to help make the prediction
 #### HIGHLY RECOMMEND use different lengths for prediction
-sequence_length = 100
+sequence_length = 20
 
 # get all pitch names
 pitchnames = sorted(set(item for item in notes))
@@ -60,7 +62,7 @@ network_input = np.reshape(network_input, (n_patterns, sequence_length, 1))
 # normalize input
 network_input = network_input / float(n_vocab)
 
-network_output = np_utils.to_categorical(network_output)
+network_output = to_categorical(network_output)
 
 
 
@@ -70,17 +72,17 @@ network_output = np_utils.to_categorical(network_output)
 # Dense layers / fully connected layers
 # Activation layer
 from keras.models import Sequential
-from keras.models import LSTM
-from keras.models import Dropout
-from keras.models import Dense
-from keras.models import Activation
-from keras import ModelCheckpoint
+from keras.layers import LSTM
+from keras.layers import Dropout
+from keras.layers import Dense
+from keras.layers import Activation
+from keras.callbacks import ModelCheckpoint
 
 #### HIGHLY RECOMMEND play w/ the structure
 model = Sequential()
 model.add(LSTM(256, input_shape=(network_input.shape[1], network_input.shape[2]), return_sequences=True))
 model.add(Dropout(0.3))
-model.add(LSTM(512, return_sequence=True))
+model.add(LSTM(512, return_sequences=True))
 model.add(Dropout(0.3))
 model.add(LSTM(256))
 model.add(Dense(256))
@@ -90,7 +92,8 @@ model.add(Activation('softmax'))
 # optimizer: RMSprop - good choice for recurrent NN
 model.compile(loss='categorical_crossentropy', optimizer='rmsprop')
 
-filepath = "weights-improvement-{epoch:02d}-{loss:.4f}-bigger.hdf5"
+# filepath = "weights-improvement-{epoch:02d}-{loss:.4f}-bigger.hdf5"
+filepath = "weights.hdf5"
 # stop running the NN once we are satistied w/ the loss value
 checkpoint = ModelCheckpoint(
     filepath, monitor='loss', verbose=0, save_best_only=True, mode='min'
@@ -102,11 +105,11 @@ model.fit(network_input, network_output, epochs=200, batch_size=64, callbacks=ca
 
 # 3. Generating Model
 model = Sequential()
-model.add(LSTM(512, input_shape=(network_input.shape[1], network_input.shape[2]), return_sequences=True))
+model.add(LSTM(256, input_shape=(network_input.shape[1], network_input.shape[2]), return_sequences=True))
 model.add(Dropout(0.3))
 model.add(LSTM(512, return_sequences=True))
 model.add(Dropout(0.3))
-model.add(LSTM(512))
+model.add(LSTM(256))
 model.add(Dense(256))
 model.add(Dropout(0.3))
 model.add(Dense(n_vocab))
@@ -135,7 +138,7 @@ for note_index in range(500):
     result = int_to_note[index]
     prediction_output.append(result)
 
-    pattern.append(index)
+    pattern = np.append(pattern, index)
     pattern = pattern[1:len(pattern)]
 
 
